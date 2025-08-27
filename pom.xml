@@ -1,0 +1,151 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+
+    <groupId>com.hnu</groupId>
+    <artifactId>Qi_Ling</artifactId>
+    <version>0.2</version>
+
+    <properties>
+        <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+        <java.version>21</java.version>
+        <jnativehook.version>2.2.2</jnativehook.version>
+        <jpackage.maven.plugin.version>1.6.0</jpackage.maven.plugin.version>
+        <javafx.version>17.0.2</javafx.version>
+    </properties>
+
+    <dependencies>
+        <!-- JavaFX -->
+        <dependency>
+            <groupId>org.openjfx</groupId>
+            <artifactId>javafx-controls</artifactId>
+            <version>${javafx.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>org.openjfx</groupId>
+            <artifactId>javafx-fxml</artifactId>
+            <version>${javafx.version}</version>
+        </dependency>
+        <!-- JNativeHook 用于全局键盘监听 -->
+        <dependency>
+            <groupId>com.github.kwhat</groupId>
+            <artifactId>jnativehook</artifactId>
+            <version>${jnativehook.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>com.google.code.gson</groupId>
+            <artifactId>gson</artifactId>
+            <version>2.8.9</version>
+        </dependency>
+    </dependencies>
+
+    <build>
+
+        <plugins>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-compiler-plugin</artifactId>
+                <version>3.8.1</version>
+                <configuration>
+                    <!-- 显式配置版本，与 properties 保持一致 -->
+                    <source>21</source>
+                    <target>21</target>
+                </configuration>
+            </plugin>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-shade-plugin</artifactId>
+                <version>3.4.1</version>
+                <executions>
+                    <execution>
+                        <phase>package</phase>
+                        <goals>
+                            <goal>shade</goal>
+                        </goals>
+                        <configuration>
+                            <transformers>
+                                <transformer implementation="org.apache.maven.plugins.shade.resource.ManifestResourceTransformer">
+                                    <mainClass>com.hnu.SmartClickerMain</mainClass>
+                                </transformer>
+                            </transformers>
+                            <filters>
+                                <filter>
+                                    <artifact>*:*</artifact>
+                                    <excludes>
+                                        <exclude>META-INF/*.SF</exclude>
+                                        <exclude>META-INF/*.DSA</exclude>
+                                        <exclude>META-INF/*.RSA</exclude>
+                                    </excludes>
+                                </filter>
+                            </filters>
+                        </configuration>
+                    </execution>
+                </executions>
+            </plugin>
+            <!-- jpackage Maven 插件 -->
+            <plugin>
+                <groupId>org.codehaus.mojo</groupId>
+                <artifactId>exec-maven-plugin</artifactId>
+                <version>3.1.0</version>
+                <executions>
+                    <execution>
+                        <!-- 绑定到Maven的package阶段之后执行 -->
+                        <phase>package</phase>
+                        <goals>
+                            <goal>exec</goal>
+                        </goals>
+                    </execution>
+                </executions>
+                <configuration>
+                    <executable>jpackage</executable>
+                    <arguments>
+                        <argument>--add-modules</argument>
+                        <argument>java.base,java.desktop,java.prefs,java.logging,java.scripting,jdk.jfr,jdk.unsupported</argument>
+
+                        <argument>--jlink-options</argument>
+                        <argument>--strip-debug --no-header-files --no-man-pages</argument>
+                        <!-- 1. 输入目录：指向target（你的jar在这） -->
+                        <argument>--input</argument>
+                        <argument>${project.build.directory}</argument>
+
+                        <!-- 2. 输出目录和版本） -->
+                        <argument>--dest</argument>
+                        <argument>${project.build.directory}/installer</argument>
+                        <argument>--app-version</argument>
+                        <argument>1.0.0</argument>
+
+                        <!-- 3. 主jar：你的带依赖jar（日志中已生成：clicker-1.0-SNAPSHOT.jar） -->
+                        <argument>--main-jar</argument>
+                        <argument>${project.artifactId}-${project.version}.jar</argument>
+
+                        <!-- 4. 应用名称（exe文件会用这个名字） -->
+                        <argument>--name</argument>
+                        <argument>自制器灵</argument>
+
+                        <!-- 5. 主类（替换为你的实际主类，如com.hnu.ClickerMain） -->
+                        <argument>--main-class</argument>
+                        <argument>com.hnu.SmartClickerMain</argument>
+
+                        <!-- 6. 平台类型：Windows生成exe -->
+                        <argument>--type</argument>
+                        <argument>exe</argument>
+
+                        <argument>--java-options</argument>
+                        <argument>--enable-native-access=ALL-UNNAMED</argument>
+
+                        <!-- 7. 添加Windows控制台参数 -->
+                        <!--<argument>&#45;&#45;win-console</argument>-->
+                        <argument>--win-dir-chooser</argument>
+                        <argument>--win-upgrade-uuid</argument>
+                        <argument>e3f9d1a2-1234-5678-90ab-cdef12345678</argument>
+
+                        <argument>--verbose</argument>
+
+                    </arguments>
+                </configuration>
+            </plugin>
+        </plugins>
+    </build>
+</project>

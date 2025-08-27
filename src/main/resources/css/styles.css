@@ -1,0 +1,128 @@
+/*app- 表示应用程序级别的样式*/
+/*page- 表示页面级别的样式*/
+/*section- 表示区域级别的样式*/
+/*nav- 表示导航相关的样式*/
+/*action- 表示操作按钮的样式*/
+
+.app-root {
+    -fx-background-color: #f5f5f5;
+    -fx-padding: 15px;
+    -fx-spacing: 10px;
+    -fx-alignment: top-center;
+}
+
+/* 页面容器样式 */
+.page-container {
+    -fx-background-color: white;
+    -fx-border-color: #ddd;
+    -fx-border-radius: 5px;
+    -fx-padding: 15px;
+}
+
+/* 页面标题样式 */
+.page-title {
+    -fx-font-size: 16px;
+    -fx-font-weight: bold;
+}
+
+/* 信息标签样式 */
+.info-text {
+    -fx-text-fill: #666;
+    -fx-font-size: 32px;
+}
+
+/* 程序标题样式 */
+.app-title {
+    -fx-font-size: 30px;
+    -fx-font-weight: bold;
+    -fx-text-fill: #333;
+}
+
+/* 导航按钮基本效果 */
+.nav-button {
+    -fx-background-color: transparent; /* 改为透明背景 */
+    -fx-text-fill: #2c3e50; /* 将文字颜色改为深色 */
+    -fx-font-size: 20px; /* 字体大小20像素 */
+    -fx-font-weight: bold; /* 字体加粗 */
+    -fx-padding: 10px 20px; /* 内边距：上下10px，左右20px */
+    -fx-background-radius: 5px; /* 背景圆角5像素 */
+    -fx-border-radius: 5px; /* 边框圆角5像素 */
+    -fx-cursor: hand; /* 鼠标悬停时显示手型光标 */
+    -fx-effect: dropshadow(gaussian, rgba(0,0,0,0.1), 3, 0, 0, 1); /* 阴影效果：高斯模糊，颜色，半径，扩散，偏移 */
+    -fx-min-height: 40px; /* 最小高度40像素 */
+    -fx-min-width: 80px; /* 最小宽度80像素 */
+    -fx-border-color: transparent; /* 透明边框 */
+    -fx-border-width: 2px; /* 边框宽度2像素 */
+}
+
+/* 导航按钮悬停效果 */
+.nav-button:hover {
+    -fx-background-color: rgba(52, 152, 219, 0.4); /* 更深一点的半透明背景 */
+    -fx-border-color: #3498db;
+}
+
+/* 导航按钮按下效果 */
+.nav-button:pressed {
+    -fx-background-color: rgba(52, 152, 219, 0.2); /* 半透明背景 */
+    -fx-border-color: #3498db;
+}
+
+/* 导航按钮选中效果 */
+.nav-button-active {
+    -fx-background-color: rgba(52, 152, 219, 0.2); /* 半透明背景 */
+    -fx-border-color: #3498db;
+    -fx-effect: dropshadow(gaussian, rgba(0,0,0,0.2), 5, 0, 0, 2);
+}
+
+
+
+/* 区域容器样式 */
+.section-container {
+    -fx-background-color: white;
+    -fx-border-color: #ddd;
+    -fx-border-radius: 5px;
+    -fx-padding: 5px;
+    -fx-alignment: center-left;
+    -fx-spacing: 10px;
+}
+
+/* 区域标题样式 */
+.section-title {
+    -fx-font-weight: bold;
+    -fx-text-fill: #444;
+    -fx-font-size: 28px;
+}
+
+/* 区域标签样式 */
+.section-text {
+    -fx-text-fill: #333;
+    -fx-font-size: 18px;
+    -fx-padding: 0 0 0 20px; /* 左内边距20像素 */
+}
+
+.section-field {
+    -fx-min-height: 30px;
+    -fx-min-width: 60px;
+    -fx-pref-width: 60px;
+    -fx-font-size: 16px;
+}
+
+/* 区域按钮样式 */
+.action-button {
+    -fx-text-fill: white;
+    -fx-background-color: #2196F3;
+    -fx-min-height: 30px;
+    -fx-min-width: 60px;
+    -fx-font-size: 16px;
+}
+
+/* 组合框基本样式 */
+.combo-box {
+    -fx-background-color: #f5f5f5;
+    -fx-border-color: #cccccc;
+    -fx-border-radius: 4px;
+    -fx-pref-heigth: 30px;
+    -fx-pref-width: 100px;
+    -fx-font-size: 16px;
+
+}
