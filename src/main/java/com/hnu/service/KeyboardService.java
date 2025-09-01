@@ -5,26 +5,26 @@ import com.github.kwhat.jnativehook.NativeHookException;
 import com.github.kwhat.jnativehook.keyboard.NativeKeyEvent;
 import com.github.kwhat.jnativehook.keyboard.NativeKeyListener;
 import com.hnu.model.ClickerState;
-import com.hnu.model.MacroState;
 
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Consumer;
 
 public class KeyboardService implements NativeKeyListener {
     private final ClickerState clickerState;
-    private final MacroState macroState;
+    private final MacroRecorder macroRecorder;
+    private final MacroPlayer macroPlayer;
     private final AtomicReference<Consumer<NativeKeyEvent>> keyConsumer = new AtomicReference<>(null);
 
-    public KeyboardService(ClickerState clickerState, MacroState macroState) {
+    public KeyboardService(ClickerState clickerState, MacroRecorder macroRecorder, MacroPlayer macroPlayer) {
         this.clickerState = clickerState;
-        this.macroState = macroState;
+        this.macroRecorder = macroRecorder;
+        this.macroPlayer = macroPlayer;
     }
 
     public void start() {
         try {
-            GlobalScreen.registerNativeHook();
             GlobalScreen.addNativeKeyListener(this);
-        } catch (NativeHookException ex) {
+        } catch (Exception ex) {
             System.err.println("全局键盘监听注册失败: " + ex.getMessage());
             System.exit(1);
         }
@@ -32,9 +32,8 @@ public class KeyboardService implements NativeKeyListener {
 
     public void stop() {
         try {
-            GlobalScreen.unregisterNativeHook();
             GlobalScreen.removeNativeKeyListener(this);
-        } catch (NativeHookException ex) {
+        } catch (Exception ex) {
             System.err.println("注销全局键盘监听失败: " + ex.getMessage());
         }
     }
@@ -53,9 +52,17 @@ public class KeyboardService implements NativeKeyListener {
             clickerState.toggleRunning();
             System.out.println("\n连点器状态: " + (clickerState.isRunning() ? "已启动" : "已停止"));
         }
-        // 处理播放热键 (F9)
-        if (e.getKeyCode() == NativeKeyEvent.VC_F9) {
 
+        // 处理宏录制热键 (F9)
+        if (e.getKeyCode() == NativeKeyEvent.VC_F9) {
+            macroRecorder.toggleRecording();
+            return;
+        }
+
+        // 处理宏播放热键 (F10)
+        if (e.getKeyCode() == NativeKeyEvent.VC_F10) {
+            macroPlayer.togglePlaying();
+            return;
         }
     }
 

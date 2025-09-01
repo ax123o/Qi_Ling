@@ -3,8 +3,14 @@ package com.hnu.view;
 import com.github.kwhat.jnativehook.keyboard.NativeKeyEvent;
 import com.hnu.model.AppState;
 import com.hnu.model.ClickerState;
+import com.hnu.model.Macro;
+import com.hnu.model.MacroState;
 import com.hnu.service.ClickerService;
+import com.hnu.service.GlobalHookManager;
 import com.hnu.service.KeyboardService;
+import com.hnu.service.MacroManager;
+import com.hnu.service.MacroPlayer;
+import com.hnu.service.MacroRecorder;
 import com.hnu.util.KeyCodeConverter;
 import com.hnu.util.RobotFactory;
 import javafx.animation.KeyFrame;
@@ -35,19 +41,37 @@ public class SmartClickerGUI extends Application {
     private Robot robot;
     private final AppState appState = new AppState();
     private final ClickerState clickerState = appState.getClickerState();
+    private final MacroState macroState = appState.getMacroState();
     private AtomicInteger clickCount = new AtomicInteger(0);
-    private long startTime;
     private KeyboardService keyboardService;
+    private MacroRecorder macroRecorder;
+    private MacroPlayer macroPlayer;
+    private MacroManager macroManager;
 
     // 页面相关字段
 
+    // 连点器相关
     private Label speedLabel;
     private Label selectedKeyLabel;
     private Label clickerStatusLabel;
     private Label clickerCountLabel;
     private Label clickerTimeLabel;
-    private long clickerStartTime = 0;
+    private TextField speedField;
+    private long startTime = 0;
     private Timeline timeline;
+    
+    // 宏相关
+    private Label macroStatusLabel;
+    private Label selectedMacroLabel;
+    private Label macroEventsLabel;
+    private Label macroDurationLabel;
+    private Button recordButton;
+    private Button playButton;
+    private Button deleteButton;
+    private Button refreshButton;
+    private TextField loopCountField;
+    private TextField macroNameField;
+    private ListView<Macro> macroListView;
 
     // 页面映射和当前页面ID
     private Map<String, Button> buttons = new HashMap<>();
@@ -69,7 +93,7 @@ public class SmartClickerGUI extends Application {
         // 加载CSS文件
         scene.getStylesheets().add(getClass().getResource("/css/styles.css").toExternalForm());
 
-        primaryStage.setTitle("智能连点器");
+        primaryStage.setTitle("自制器灵");
         primaryStage.setScene(scene);
         primaryStage.show();
         primaryStage.setOnCloseRequest(e -> {
@@ -77,9 +101,11 @@ public class SmartClickerGUI extends Application {
             Platform.exit();
         });
 
-        scene.setOnKeyPressed(event -> {
+        scene.addEventFilter(javafx.scene.input.KeyEvent.KEY_PRESSED, event -> {
             if (event.getCode() == KeyCode.ESCAPE) {
-                primaryStage.close(); // 这会触发setOnCloseRequest
+                cleanup();
+                Platform.exit();
+                event.consume();
             }
         });
 
@@ -90,11 +116,23 @@ public class SmartClickerGUI extends Application {
     private void initializeServices() {
         robot = RobotFactory.createRobot();
 
-        //初始化热键监听服务
-        keyboardService = new KeyboardService(clickerState, null);
+        //注册全局钩子
+        GlobalHookManager.registerNativeHook();
+
+        // 初始化宏管理器
+        macroManager = new MacroManager(macroState);
+
+        // 初始化宏录制器
+        macroRecorder = new MacroRecorder(macroState);
+
+        // 初始化宏播放器
+        macroPlayer = new MacroPlayer(macroState);
+
+        // 初始化热键监听服务
+        keyboardService = new KeyboardService(clickerState, macroRecorder, macroPlayer);
         keyboardService.start();
 
-        //初始化连点服务
+        // 初始化连点服务
         Thread clickerThread = new Thread(new ClickerService(clickerState, robot, clickCount));
         clickerThread.setDaemon(true);
         clickerThread.start();
@@ -105,7 +143,7 @@ public class SmartClickerGUI extends Application {
         root.getStyleClass().add("app-root"); // 添加CSS类
 
         // 标题
-        Label titleLabel = new Label("自动连点器");
+        Label titleLabel = new Label("自制器灵");
         titleLabel.getStyleClass().add("app-title"); // 添加CSS类
 
         // 创建切换按钮
@@ -208,12 +246,135 @@ public class SmartClickerGUI extends Application {
         VBox page = new VBox(10);
         page.getStyleClass().add("page-container"); // 添加CSS类
 
-        // 这里添加宏功能的具体控件
-        Label infoLabel = new Label("宏功能正在开发中...");
-        infoLabel.getStyleClass().add("info-text"); // 添加CSS类
+        // 宏状态区域
+        VBox statusBox = createMacroStatusBox();
 
-        page.getChildren().addAll(infoLabel);
+        // 宏控制区域
+        VBox controlBox = createMacroControlBox();
+
+        // 宏列表区域
+        VBox listBox = createMacroListBox();
+
+        page.getChildren().addAll(statusBox, controlBox, listBox);
+
+        // 初始化宏列表
+        refreshMacroList();
+        
         return page;
+    }
+    
+    private VBox createMacroStatusBox() {
+        VBox statusBox = new VBox(5);
+        statusBox.getStyleClass().add("section-container");
+        
+        Label titleLabel = new Label("宏状态:");
+        titleLabel.getStyleClass().add("section-title");
+        
+        macroStatusLabel = new Label("状态: 已停止");
+        macroStatusLabel.getStyleClass().add("section-text");
+        
+        selectedMacroLabel = new Label("当前选中: 无");
+        selectedMacroLabel.getStyleClass().add("section-text");
+        
+        macroEventsLabel = new Label("事件数量: 0");
+        macroEventsLabel.getStyleClass().add("section-text");
+
+        macroDurationLabel = new Label("总时长: 0ms");
+        macroDurationLabel.getStyleClass().add("section-text");
+        
+        statusBox.getChildren().addAll(titleLabel, macroStatusLabel, selectedMacroLabel, macroEventsLabel, macroDurationLabel);
+        return statusBox;
+    }
+    
+    private VBox createMacroControlBox() {
+        VBox controlBox = new VBox(5);
+        controlBox.getStyleClass().add("section-container");
+        
+        Label titleLabel = new Label("控制:");
+        titleLabel.getStyleClass().add("section-title");
+        
+        // 录制和播放按钮
+        HBox recordPlayBox = new HBox(10);
+        recordPlayBox.setAlignment(Pos.CENTER_LEFT);
+        
+        recordButton = new Button("开始录制");
+        recordButton.getStyleClass().add("action-button");
+        recordButton.setOnAction(e -> macroRecorder.toggleRecording());
+        
+        playButton = new Button("开始播放");
+        playButton.getStyleClass().add("action-button");
+        playButton.setOnAction(e -> macroPlayer.togglePlaying());
+        playButton.setDisable(true); // 初始时禁用播放按钮
+        
+        recordPlayBox.getChildren().addAll(recordButton, playButton);
+        
+        // 循环次数设置
+        HBox loopBox = new HBox(10);
+        loopBox.setAlignment(Pos.CENTER_LEFT);
+        
+        Label loopLabel = new Label("循环次数:");
+        loopLabel.getStyleClass().add("section-text");
+        
+        loopCountField = new TextField("1");
+        loopCountField.getStyleClass().add("section-field");
+        loopCountField.setPrefWidth(60);
+
+        loopCountField.setOnKeyPressed(event -> {
+            if (event.getCode() == KeyCode.ENTER) {
+                updateLoopCount();
+                loopCountField.getParent().requestFocus();
+            }
+        });
+
+        // 添加应用按钮
+        Button applyButton = new Button("应用");
+        applyButton.getStyleClass().add("action-button");
+        applyButton.setOnAction(e -> updateLoopCount());
+        
+        Label loopHintLabel = new Label("(0表示无限循环)");
+        loopHintLabel.getStyleClass().add("section-text");
+        
+        loopBox.getChildren().addAll(loopLabel, loopCountField, applyButton, loopHintLabel);
+        
+        controlBox.getChildren().addAll(titleLabel, recordPlayBox, loopBox);
+        return controlBox;
+    }
+    
+    private VBox createMacroListBox() {
+        VBox listBox = new VBox(5);
+        listBox.getStyleClass().add("section-container");
+        
+        Label titleLabel = new Label("已保存的宏:");
+        titleLabel.getStyleClass().add("section-title");
+        
+        // 宏列表
+        macroListView = new ListView<>();
+        macroListView.getStyleClass().add("macro-list");
+        macroListView.setPrefHeight(150);
+        macroListView.getSelectionModel().selectedItemProperty().addListener((obs, oldVal, newVal) -> {
+            if (newVal != null) {
+                macroState.setSelectedMacro(newVal);
+                updateMacroInfo(newVal);
+            }
+        });
+        
+        // 删除按钮
+        HBox buttonBox = new HBox(10);
+        buttonBox.setAlignment(Pos.CENTER_LEFT);
+        
+        deleteButton = new Button("删除选中的宏");
+        deleteButton.getStyleClass().add("action-button");
+        deleteButton.setOnAction(e -> deleteMacro());
+        deleteButton.setDisable(true); // 初始时禁用删除按钮
+        
+        refreshButton = new Button("刷新列表");
+        refreshButton.getStyleClass().add("action-button");
+        refreshButton.setOnAction(e -> refreshMacroList());
+        
+        buttonBox.getChildren().addAll(deleteButton, refreshButton);
+        
+        listBox.getChildren().addAll(titleLabel, macroListView, buttonBox);
+        return listBox;
     }
 
     private VBox createClickerStatusBox() {
@@ -248,25 +409,20 @@ public class SmartClickerGUI extends Application {
         Label speedTitle = new Label("速度 (ms):");
         speedTitle.getStyleClass().add("section-text");
 
-        TextField speedField = new TextField(String.valueOf(clickerState.getInterval()));
+        speedField = new TextField(String.valueOf(clickerState.getInterval()));
         speedField.getStyleClass().add("section-field");
+        speedField.setOnKeyPressed(event -> {
+            if (event.getCode() == KeyCode.ENTER) {
+                updateSpeed();
+                speedField.getParent().requestFocus();
+            }
+        });
 
         Button speedButton = new Button("应用");
         speedButton.getStyleClass().add("action-button");
+        speedButton.setOnAction(e -> updateSpeed());
 
-        speedButton.setOnAction(e -> {
-            try {
-                int speed = Integer.parseInt(speedField.getText());
-                if (speed > 0) {
-                    clickerState.setInterval(speed);
-                    speedLabel.setText("速度: " + speed + "ms/次");
-                } else {
-                    showAlert("错误", "速度必须大于0");
-                }
-            } catch (NumberFormatException ex) {
-                showAlert("错误", "请输入有效的数字");
-            }
-        });
+
         speedBox.getChildren().addAll(speedTitle, speedField, speedButton);
 
         // 按键设置
@@ -352,14 +508,6 @@ public class SmartClickerGUI extends Application {
         keyStage.setScene(scene);
         keyStage.setResizable(false);
 
-        // 为设置键盘按键的窗口也添加ESC键监听
-        scene.setOnKeyPressed(event -> {
-            if (event.getCode() == KeyCode.ESCAPE) {
-                keyboardService.clearKeyConsumer();
-                keyStage.close();
-            }
-        });
-
         // 设置按键监听器
         keyboardService.setKeyConsumer(event -> {
             int nativeKeyCode = event.getKeyCode();
@@ -395,33 +543,70 @@ public class SmartClickerGUI extends Application {
 
     private void startStatusUpdateThread() {
         Thread updateThread = new Thread(() -> {
-            boolean wasRunning = false; // 记录上一次的状态
+            boolean clickerWasRunning = false; // 记录上一次的状态
+            boolean macroRecorderWasRunning = false;
+            boolean macroPlayerWasRunning = false;
             timeline = new Timeline(new KeyFrame(Duration.seconds(1), e -> updateTime()));
             timeline.setCycleCount(Timeline.INDEFINITE);
             while (!appState.isShutdownRequested()) {
                 try {
                     Thread.sleep(100);
-                    if (clickerState.isRunning() && !wasRunning) {
+                    if (clickerState.isRunning() && !clickerWasRunning) {
+                        startTime = System.currentTimeMillis();
+                        timeline.play();
+                        clickCount.set(0);
                         Platform.runLater(() -> {
                             clickerStatusLabel.setText("状态: 运行中");
-                            startTime = System.currentTimeMillis();
-                            timeline.play();
                         });
                     }
-                    else if (!clickerState.isRunning() && wasRunning) {
+                    else if (!clickerState.isRunning() && clickerWasRunning) {
+                        if (timeline != null) {
+                            timeline.stop();
+                        }
                         Platform.runLater(() -> {
                             clickerStatusLabel.setText("状态: 已停止");
-                            // 停止计时器
-                            if (timeline != null) {
-                                timeline.stop();
-                            }
+                        });
+                    }
+
+                    if(macroState.isRecording() && !macroRecorderWasRunning) {
+                        Platform.runLater(() -> {
+                            recordButton.setText("停止录制");
+                            macroStatusLabel.setText("状态: 正在录制");
+                        });
+                    }
+                    else if(macroState.isPlaying() && !macroPlayerWasRunning) {
+
+                        Platform.runLater(() -> {
+                            playButton.setText("停止播放");
+                            macroStatusLabel.setText("状态: 正在播放");
+                        });
+                    }
+                    else if(!macroState.isRecording() && macroRecorderWasRunning) {
+                        // 保存当前录制的宏
+                        Macro currentMacro = macroRecorder.getCurrentMacro();
+                        //刷新宏列表
+                        if (currentMacro != null) {
+                            macroManager.saveMacro(currentMacro);
+                        }
+                        Platform.runLater(() -> {
+                            refreshMacroList();
+                            recordButton.setText("开始录制");
+                            macroStatusLabel.setText("状态: 已停止");
+                        });
+                    }
+                    else if(!macroState.isPlaying() && macroPlayerWasRunning){
+                        Platform.runLater(() -> {
+                            playButton.setText("开始播放");
+                            macroStatusLabel.setText("状态: 已停止");
                         });
                     }
                     Platform.runLater(() -> {
                         // 更新计数
                         clickerCountLabel.setText("点击次数: " + clickCount.get());
                     });
-                    wasRunning = clickerState.isRunning(); // 更新状态记录
+                    clickerWasRunning = clickerState.isRunning(); // 更新状态记录
+                    macroRecorderWasRunning = macroState.isRecording();
+                    macroPlayerWasRunning = macroState.isPlaying();
                 } catch (InterruptedException e) {
                     Thread.currentThread().interrupt();
                     break;
@@ -456,6 +641,106 @@ public class SmartClickerGUI extends Application {
         appState.requestShutdown();
         if (keyboardService != null) {
             keyboardService.stop();
+            System.out.println("热键监听服务已停止");
+        }
+        if(macroState.isRecording()){
+            macroRecorder.stop();
+            System.out.println("宏录制服务已停止");
+        }
+        if (macroState.isPlaying()) {
+            macroPlayer.stop();
+            System.out.println("宏播放服务已停止");
+        }
+        if (timeline != null) {
+            timeline.stop();
+        }
+        GlobalHookManager.unregisterNativeHook();
+    }
+
+    private void updateSpeed(){
+        try {
+            int speed = Integer.parseInt(speedField.getText());
+            if (speed > 0) {
+                clickerState.setInterval(speed);
+                speedLabel.setText("速度: " + speed + "ms/次");
+            } else {
+                showAlert("错误", "速度必须大于0");
+                speedField.setText(Integer.toString(clickerState.getInterval()));
+            }
+        } catch (NumberFormatException ex) {
+            showAlert("错误", "请输入有效的数字");
+            speedField.setText(Integer.toString(clickerState.getInterval()));
+        }
+    }
+
+
+    /**
+     * 更新选中的宏的循环次数
+     */
+    private void updateLoopCount() {
+        try {
+            int loopCount = Integer.parseInt(loopCountField.getText().trim());
+            if(loopCount < 0){
+                macroState.setLoopCount(1);
+                loopCountField.setText("1");
+            }else{
+                macroState.setLoopCount(loopCount);
+            }
+        } catch (NumberFormatException e) {
+            macroState.setLoopCount(1);
+            loopCountField.setText("1");
+            showAlert("错误", "请输入正确的数字");
+        }
+    }
+
+    /**
+     * 删除选中的宏
+     */
+    private void deleteMacro() {
+        Macro selectedMacro = macroListView.getSelectionModel().getSelectedItem();
+        if (selectedMacro != null) {
+            boolean success = macroManager.deleteMacro(selectedMacro);
+            if (success) {
+                refreshMacroList();
+                
+                // 清空选中状态
+                macroState.setSelectedMacro(null);
+                selectedMacroLabel.setText("当前选中: 无");
+                macroEventsLabel.setText("事件数量: 0");
+                macroDurationLabel.setText("总时长: 0ms");
+                playButton.setDisable(true);
+                deleteButton.setDisable(true);
+            } else {
+                showAlert("错误", "删除宏失败");
+            }
+        }
+    }
+    
+    /**
+     * 刷新宏列表
+     */
+    private void refreshMacroList() {
+        macroListView.getItems().clear();
+        macroListView.getItems().addAll(macroState.getMacros());
+    }
+    
+    /**
+     * 更新宏信息显示
+     */
+    private void updateMacroInfo(Macro macro) {
+        if (macro != null) {
+            selectedMacroLabel.setText("当前选中: " + macro.getName());
+            macroEventsLabel.setText("事件数量: " + macro.getEventCount());
+            macroDurationLabel.setText("总时长: " + macro.getDuration() + "ms");
+            loopCountField.setText(String.valueOf(macroState.getLoopCount()));
+            deleteButton.setDisable(false);
+            playButton.setDisable(false);
+        } else {
+            selectedMacroLabel.setText("当前选中: 无");
+            macroEventsLabel.setText("事件数量: 0");
+            macroDurationLabel.setText("总时长: 0ms");
+            deleteButton.setDisable(true);
+            playButton.setDisable(true);
         }
     }
 }
