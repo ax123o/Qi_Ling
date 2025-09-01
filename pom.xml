@@ -6,7 +6,7 @@
 
     <groupId>com.hnu</groupId>
     <artifactId>Qi_Ling</artifactId>
-    <version>0.2</version>
+    <version>1.0</version>
 
     <properties>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
@@ -102,7 +102,7 @@
                     <executable>jpackage</executable>
                     <arguments>
                         <argument>--add-modules</argument>
-                        <argument>java.base,java.desktop,java.prefs,java.logging,java.scripting,jdk.jfr,jdk.unsupported</argument>
+                        <argument>java.base,java.desktop,java.prefs,java.logging,java.scripting,java.sql,jdk.jfr,jdk.unsupported</argument>
 
                         <argument>--jlink-options</argument>
                         <argument>--strip-debug --no-header-files --no-man-pages</argument>
