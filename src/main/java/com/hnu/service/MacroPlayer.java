@@ -97,19 +97,20 @@ public void run() {
                         Thread.sleep(waitTime);
                     }
 
-                    //计算缩放后的坐标
-                    Point scaledPoint = scalePoint(event.getPosition());
 
                     // 根据事件类型执行相应的操作
                     switch (event.getType()) {
                         case MOUSE_MOVE:
+                            Point scaledPoint = scalePoint(event.getPosition());
                             robot.mouseMove(scaledPoint.x, scaledPoint.y);
                             break;
                         case MOUSE_PRESS:
+                            scaledPoint = scalePoint(event.getPosition());
                             robot.mouseMove(scaledPoint.x, scaledPoint.y);
                             robot.mousePress(event.getCode());
                             break;
                         case MOUSE_RELEASE:
+                            scaledPoint = scalePoint(event.getPosition());
                             robot.mouseMove(scaledPoint.x, scaledPoint.y);
                             robot.mouseRelease(event.getCode());
                             break;
