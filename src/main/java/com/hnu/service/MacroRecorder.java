@@ -88,7 +88,7 @@ public class MacroRecorder implements NativeKeyListener, NativeMouseInputListene
     public void toggleRecording() {
         if (macroState.isRecording()) {
             stop();
-        } else {
+        } else if (!macroState.isPlaying()) {
             start();
         }
     }

@@ -54,7 +54,7 @@ public class MacroPlayer implements Runnable{
     public void togglePlaying(){
         if (macroState.isPlaying()) {
             stop();
-        } else {
+        } else if (!macroState.isRecording()) {
             start();
         }
     }

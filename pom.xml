@@ -6,7 +6,7 @@
 
     <groupId>com.hnu</groupId>
     <artifactId>Qi_Ling</artifactId>
-    <version>1.0</version>
+    <version>1.0.2</version>
 
     <properties>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
@@ -114,7 +114,7 @@
                         <argument>--dest</argument>
                         <argument>${project.build.directory}/installer</argument>
                         <argument>--app-version</argument>
-                        <argument>1.0.0</argument>
+                        <argument>1.0.2</argument>
 
                         <!-- 3. 主jar：你的带依赖jar（日志中已生成：clicker-1.0-SNAPSHOT.jar） -->
                         <argument>--main-jar</argument>
